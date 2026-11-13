@@ -25,5 +25,8 @@ cd quellcode
 npm install
 node build-html.js arbeitszeit.html ../download/Petrus-Zeiterfassung.html
 node build-pwa.js ../download/Petrus-Zeiterfassung.html ..
-npx electron-builder --win portable --x64
+python3 make-icons.py icon-quelle.png ..
+npm run dist    # Windows-Programm mit App-Symbol, Ergebnis in dist/
 ```
+
+Das App-Symbol stammt aus `quellcode/icon-quelle.png`. Für ein neues Symbol diese Datei ersetzen und die Schritte oben erneut ausführen.

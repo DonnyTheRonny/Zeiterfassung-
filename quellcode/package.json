@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "build:html": "node build-html.js",
-    "dist": "electron-builder --win portable --x64"
+    "dist": "electron-builder --win --dir && node set-exe-icon.js \"dist/win-unpacked/Petrus Zeiterfassung.exe\" icon.ico && electron-builder --win portable --x64 --prepackaged \"dist/win-unpacked\""
   },
   "keywords": [],
   "author": "Petrus Zeiterfassung",
@@ -14,14 +14,15 @@
   "devDependencies": {
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
+    "resedit": "^1.7.2",
     "xlsx": "0.18.5"
   },
-  "dependencies": {},
   "build": {
     "appId": "de.stempelkarte.app",
     "productName": "Petrus Zeiterfassung",
     "files": [
       "main.js",
+      "icon.png",
       "app/**/*"
     ],
     "directories": {
@@ -29,7 +30,8 @@
     },
     "win": {
       "target": "portable",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "icon": "icon.ico"
     },
     "portable": {
       "artifactName": "Petrus-Zeiterfassung.exe"

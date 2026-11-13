@@ -15,6 +15,7 @@ function createWindow() {
     minWidth: 420,
     minHeight: 500,
     title: "Petrus Zeiterfassung",
+    icon: path.join(__dirname, "icon.png"),
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });

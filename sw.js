@@ -1,5 +1,5 @@
-// Petrus Zeiterfassung – Offline-Speicher der App-Dateien (Version 202611131038)
-const CACHE = "petrus-zeiterfassung-202611131038";
+// Petrus Zeiterfassung – Offline-Speicher der App-Dateien (Version 202611191439)
+const CACHE = "petrus-zeiterfassung-202611191439";
 const FILES = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 
 self.addEventListener("install", (ev) => {

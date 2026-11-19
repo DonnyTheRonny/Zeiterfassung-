@@ -70,8 +70,8 @@ input.invalid { border-color: var(--warn); background: var(--warn-soft); }
 .timer.paused .pausebtn { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .timer-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .none { color: var(--muted); font-size: 0.9rem; padding: 6px 0; }
-.newrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 8px; }
-.tfields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 6px; }
+.newrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 8px; }
+.tfields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 6px; }
 .newrow .primary { padding-inline: 18px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { display: inline-flex; align-items: stretch; max-width: 100%; border-radius: 999px; background: var(--soft); overflow: hidden; }
@@ -112,6 +112,7 @@ input.invalid { border-color: var(--warn); background: var(--warn-soft); }
 .entry .d { font-family: var(--f-mono); font-size: 0.8rem; color: var(--muted); }
 .entry .n { font-size: 0.9rem; overflow-wrap: anywhere; }
 .entry .c { font-size: 0.9rem; font-weight: 600; overflow-wrap: anywhere; }
+.entry .m { font-size: 0.9rem; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
 .entry .n.missing { color: var(--warn); font-style: italic; }
 .entry.live .t { color: var(--run); font-weight: 600; }
 .tag { font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); }
@@ -151,9 +152,8 @@ form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem;
   .day { grid-template-columns: 52px 1fr 52px; }
   .stat .v { font-size: 1rem; }
   .timer { grid-template-columns: 1fr auto; }
-  .newrow { grid-template-columns: minmax(0, 1fr) auto; }
-  .newrow #newTask { grid-column: 1; grid-row: 2; }
-  .newrow #startBtn { grid-column: 2; grid-row: 1 / span 2; }
+  .newrow { grid-template-columns: minmax(0, 1fr); }
+  .newrow #startBtn { padding-block: 12px; }
   .tfields { grid-template-columns: 1fr; }
   .timer .el { grid-column: 1; }
   .timer-body { grid-column: 1 / -1; grid-row: 2; }
@@ -186,11 +186,13 @@ form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem;
     <div class="timers" id="timers"></div>
     <div class="newrow">
       <input id="newClient" type="text" maxlength="120" list="clients" placeholder="Mandant" aria-label="Mandant">
+      <input id="newMatter" type="text" maxlength="160" list="matters" placeholder="In Sachen" aria-label="In Sachen">
       <input id="newTask" type="text" maxlength="200" placeholder="Tätigkeit, z. B. Rückfrage Angebot" aria-label="Tätigkeit">
       <button class="primary" type="button" id="startBtn">Starten</button>
     </div>
     <div class="chips" id="chips"></div>
     <datalist id="clients"></datalist>
+    <datalist id="matters"></datalist>
   </section>
 
   <nav class="menu" aria-label="Bereiche">
@@ -234,7 +236,8 @@ form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem;
       <label>Ende<input id="fEnd" type="time"></label>
       <label>Pause (Min.)<input id="fPause" type="number" min="0" max="600" step="5" value="0"></label>
       <label class="half">Mandant<input id="fClient" type="text" maxlength="120" list="clients" placeholder="z. B. Müller GmbH"></label>
-      <label class="half">Tätigkeit<input id="fNote" type="text" maxlength="200" required placeholder="Was wurde in dieser Zeit gemacht?"></label>
+      <label class="half">In Sachen<input id="fMatter" type="text" maxlength="160" list="matters" placeholder="z. B. Müller ./. Schmidt"></label>
+      <label class="wide">Tätigkeit<input id="fNote" type="text" maxlength="200" required placeholder="Was wurde in dieser Zeit gemacht?"></label>
       <div class="actions">
         <button class="primary" type="submit" id="saveBtn">Eintrag speichern</button>
         <button type="button" class="ghost" id="cancelBtn" hidden>Abbrechen</button>
@@ -416,29 +419,30 @@ window.addEventListener("error", (ev) => {
 
   // ---------- Laufende Zeiten ----------
   const runningList = () => Object.entries(entries).filter(([, e]) => !e.end).sort((a, b) => (a[1].startedAt || 0) - (b[1].startedAt || 0));
-  const label = (e) => [e.client, e.note].filter(Boolean).join(" · ");
+  const label = (e) => [e.client, e.matter ? "in Sachen " + e.matter : "", e.note].filter(Boolean).join(" · ");
 
-  async function startTimer(client, note) {
+  async function startTimer(client, matter, note) {
     if (!store) return;
     const now = new Date();
-    await save(newId(), { kind: "entry", date: isoDate(now), start: hhmm(now), startedAt: now.getTime(), createdAt: now.getTime(), end: null, pause: 0, client: (client || "").trim(), note: (note || "").trim() });
+    await save(newId(), { kind: "entry", date: isoDate(now), start: hhmm(now), startedAt: now.getTime(), createdAt: now.getTime(), end: null, pause: 0, client: (client || "").trim(), matter: (matter || "").trim(), note: (note || "").trim() });
   }
 
   $("startBtn").addEventListener("click", async () => {
-    await startTimer($("newClient").value, $("newTask").value);
-    $("newClient").value = ""; $("newTask").value = "";
+    await startTimer($("newClient").value, $("newMatter").value, $("newTask").value);
+    $("newClient").value = ""; $("newMatter").value = ""; $("newTask").value = "";
     $("newClient").focus();
   });
-  ["newClient", "newTask"].forEach((idIn) => $(idIn).addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); $("startBtn").click(); } }));
+  ["newClient", "newMatter", "newTask"].forEach((idIn) => $(idIn).addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); $("startBtn").click(); } }));
 
-  // Mandanten aus früheren Einträgen als Vorschläge
-  function renderClients() {
-    const names = [...new Set(Object.values(entries).map((e) => (e.client || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
-    const dl = $("clients"); dl.textContent = "";
+  // Mandanten und „In Sachen“ aus früheren Einträgen als Vorschläge
+  function fillList(listId, field) {
+    const names = [...new Set(Object.values(entries).map((e) => (e[field] || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+    const dl = $(listId); dl.textContent = "";
     names.forEach((n) => { const o = document.createElement("option"); o.value = n; dl.append(o); });
   }
+  function renderClients() { fillList("clients", "client"); fillList("matters", "matter"); }
 
-  const timerEls = new Map(); // id -> {root, el, client, input, err, since, pauseBtn}
+  const timerEls = new Map(); // id -> {root, el, client, matter, input, err, since, pauseBtn}
 
   function renderTimers() {
     const list = runningList();
@@ -447,7 +451,7 @@ window.addEventListener("error", (ev) => {
     for (const [id, t] of timerEls) if (!ids.has(id)) { t.root.remove(); timerEls.delete(id); }
     let none = box.querySelector(".none");
     if (!list.length) {
-      if (!none) { none = document.createElement("div"); none.className = "none"; none.textContent = "Gerade läuft keine Zeit. Mandant und Tätigkeit eingeben und „Starten“ drücken."; box.append(none); }
+      if (!none) { none = document.createElement("div"); none.className = "none"; none.textContent = "Gerade läuft keine Zeit. Mandant, In Sachen und Tätigkeit eingeben und „Starten“ drücken."; box.append(none); }
     } else if (none) none.remove();
 
     list.forEach(([id, e]) => {
@@ -461,7 +465,9 @@ window.addEventListener("error", (ev) => {
         client.placeholder = "Mandant"; client.setAttribute("aria-label", "Mandant"); client.setAttribute("list", "clients");
         const input = document.createElement("input"); input.type = "text"; input.maxLength = 200; input.id = "task-" + id;
         input.placeholder = "Tätigkeit (Pflicht)"; input.setAttribute("aria-label", "Tätigkeit");
-        fields.append(client, input);
+        const matter = document.createElement("input"); matter.type = "text"; matter.maxLength = 160; matter.id = "matter-" + id;
+        matter.placeholder = "In Sachen"; matter.setAttribute("aria-label", "In Sachen"); matter.setAttribute("list", "matters");
+        fields.append(client, matter, input);
         const since = document.createElement("div"); since.className = "since";
         const err = document.createElement("div"); err.className = "err";
         body.append(fields, since, err);
@@ -471,9 +477,10 @@ window.addEventListener("error", (ev) => {
         btns.append(pauseBtn, stop);
         root.append(el, body, btns);
         box.append(root);
-        t = { root, el, client, input, since, err, pauseBtn };
+        t = { root, el, client, matter, input, since, err, pauseBtn };
         timerEls.set(id, t);
         client.value = e.client || "";
+        matter.value = e.matter || "";
         input.value = e.note || "";
         pauseBtn.addEventListener("click", async () => {
           const cur = entries[id]; if (!cur) return;
@@ -485,24 +492,26 @@ window.addEventListener("error", (ev) => {
         });
         const onChange = () => {
           const cur = entries[id]; if (!cur) return;
-          const c = client.value.trim(), v = input.value.trim();
-          if (c !== (cur.client || "") || v !== (cur.note || "")) save(id, { ...cur, client: c, note: v });
+          const c = client.value.trim(), m = matter.value.trim(), v = input.value.trim();
+          if (c !== (cur.client || "") || m !== (cur.matter || "") || v !== (cur.note || "")) save(id, { ...cur, client: c, matter: m, note: v });
           if (v) { input.classList.remove("invalid"); t.err.textContent = ""; }
         };
         client.addEventListener("change", onChange);
+        matter.addEventListener("change", onChange);
         input.addEventListener("change", onChange);
-        [client, input].forEach((f) => f.addEventListener("keydown", (ev) => { if (ev.key === "Enter") f.blur(); }));
+        [client, matter, input].forEach((f) => f.addEventListener("keydown", (ev) => { if (ev.key === "Enter") f.blur(); }));
         stop.addEventListener("click", async () => {
           const cur = entries[id]; if (!cur) return;
-          const c = client.value.trim(), v = input.value.trim();
+          const c = client.value.trim(), m = matter.value.trim(), v = input.value.trim();
           if (!v) { input.classList.add("invalid"); t.err.textContent = "Bitte zuerst eintragen, was in dieser Zeit gemacht wurde."; input.focus(); return; }
           const now = Date.now();
           const breaks = (cur.breaks || []).map((b) => (b.to ? b : { ...b, to: now }));
-          await save(id, { ...cur, client: c, note: v, breaks, end: hhmm(new Date(now)) });
+          await save(id, { ...cur, client: c, matter: m, note: v, breaks, end: hhmm(new Date(now)) });
         });
       } else {
         if (document.activeElement !== t.input && (e.note || "") !== t.input.value.trim()) t.input.value = e.note || "";
         if (document.activeElement !== t.client && (e.client || "") !== t.client.value.trim()) t.client.value = e.client || "";
+        if (document.activeElement !== t.matter && (e.matter || "") !== t.matter.value.trim()) t.matter.value = e.matter || "";
       }
       const now = Date.now();
       const t0 = e.startedAt || new Date(e.date + "T" + e.start).getTime();
@@ -519,9 +528,10 @@ window.addEventListener("error", (ev) => {
     });
   }
 
-  // Kurzwahl: zuletzt genutzte Kombinationen aus Mandant und Tätigkeit; ✕ blendet eine aus,
+  // Kurzwahl: zuletzt genutzte Kombinationen aus Mandant, In Sachen und Tätigkeit; ✕ blendet eine aus,
   // bis sie wieder neu verwendet wird
-  const chipKey = (e) => (e.client || "") + "\u0001" + (e.note || "");
+  // Ohne „In Sachen“ bleibt der Schlüssel wie vorher, damit ausgeblendete Kurzwahl-Knöpfe ausgeblendet bleiben
+  const chipKey = (e) => (e.client || "") + "\u0001" + (e.matter ? e.matter + "\u0001" : "") + (e.note || "");
   const usedAt = (e) => e.startedAt || new Date(e.date + "T" + e.start).getTime();
 
   function renderChips() {
@@ -544,7 +554,7 @@ window.addEventListener("error", (ev) => {
       const wrap = document.createElement("span"); wrap.className = "chip";
       const b = document.createElement("button"); b.type = "button"; b.className = "chip-start";
       b.textContent = "▸ " + label(e); b.title = "Erneut starten: " + label(e);
-      b.addEventListener("click", () => startTimer(e.client, e.note));
+      b.addEventListener("click", () => startTimer(e.client, e.matter, e.note));
       const x = document.createElement("button"); x.type = "button"; x.className = "chip-x";
       x.textContent = "✕"; x.title = "Aus der Kurzwahl entfernen"; x.setAttribute("aria-label", "Aus der Kurzwahl entfernen: " + label(e));
       x.addEventListener("click", () => {
@@ -634,6 +644,7 @@ window.addEventListener("error", (ev) => {
         const n = document.createElement("span"); n.className = "n" + (e.note ? "" : " missing"); n.textContent = e.note || "Tätigkeit fehlt";
         b.append(t, du);
         if (e.client) { const c = document.createElement("span"); c.className = "c"; c.textContent = e.client; b.append(c); }
+        if (e.matter) { const m = document.createElement("span"); m.className = "m"; m.textContent = "in Sachen " + e.matter; b.append(m); }
         b.append(n);
         if (spans[idx].some(([s1, e1]) => spans.some((other, j) => j !== idx && other.some(([s2, e2]) => s1 < e2 && s2 < e1)))) { const tg = document.createElement("span"); tg.className = "tag"; tg.textContent = "parallel"; b.append(tg); }
         b.addEventListener("click", () => startEdit(id));
@@ -674,7 +685,7 @@ window.addEventListener("error", (ev) => {
     const e = entries[id]; if (!e) return;
     editing = id; confirmDel = false;
     $("fDate").value = e.date; $("fStart").value = e.start; $("fEnd").value = e.end || "";
-    $("fPause").value = totalPause(e); $("fNote").value = e.note || ""; $("fClient").value = e.client || "";
+    $("fPause").value = totalPause(e); $("fNote").value = e.note || ""; $("fClient").value = e.client || ""; $("fMatter").value = e.matter || "";
     $("formTitle").textContent = e.end ? "Eintrag bearbeiten" : "Laufende Zeit bearbeiten";
     $("saveBtn").textContent = "Änderung speichern";
     $("cancelBtn").hidden = false; $("deleteBtn").hidden = false;
@@ -696,6 +707,7 @@ window.addEventListener("error", (ev) => {
       pause: Math.max(0, Number($("fPause").value) || 0),
       createdAt: prev?.createdAt || Date.now(),
       client: $("fClient").value.trim(),
+      matter: $("fMatter").value.trim(),
       note: $("fNote").value.trim(),
     };
     if (!data.note) { $("formMsg").textContent = "Bitte eine Tätigkeit eintragen."; return; }
@@ -733,8 +745,9 @@ window.addEventListener("error", (ev) => {
   // Druckfertig für A4 hoch: Spalten passen auf die Seitenbreite, lange Tätigkeiten werden auf Folgezeilen umbrochen,
   // die Tabellenüberschrift wiederholt sich auf jeder Seite, Fußzeile mit Seitenzahl.
   const tcell = (min) => ({ t: "n", v: Math.round(min) / 1440, z: "[h]:mm" });
-  const NOTE_WIDTH = 40;
-  const CLIENT_WIDTH = 19;
+  const NOTE_WIDTH = 32;
+  const CLIENT_WIDTH = 16;
+  const MATTER_WIDTH = 17;
 
   function wrapText(text, width = NOTE_WIDTH) {
     const lines = [];
@@ -751,13 +764,14 @@ window.addEventListener("error", (ev) => {
   }
 
   // Eine Zeile pro Eintrag, Folgezeilen nur mit dem restlichen Text der Tätigkeit
-  function pushEntry(rows, cells, client, note) {
-    const cl = wrapText(client, CLIENT_WIDTH), nl = wrapText(note, NOTE_WIDTH);
+  function pushEntry(rows, cells, client, matter, note) {
+    const cl = wrapText(client, CLIENT_WIDTH), ml = wrapText(matter, MATTER_WIDTH), nl = wrapText(note, NOTE_WIDTH);
     // Einrückung trennt den Mandanten sichtbar von der rechtsbündigen Dauer
-    for (let i = 0; i < Math.max(cl.length, nl.length); i++) {
-      rows.push([...(i ? cells.map(() => "") : cells), cl[i] ? "   " + cl[i] : "", nl[i] || ""]);
+    for (let i = 0; i < Math.max(cl.length, ml.length, nl.length); i++) {
+      rows.push([...(i ? cells.map(() => "") : cells), cl[i] ? "   " + cl[i] : "", ml[i] || "", nl[i] || ""]);
     }
   }
+
 
 
   function daySheetRows(key) {
@@ -767,9 +781,9 @@ window.addEventListener("error", (ev) => {
       ["Name: " + (settings.name || "")],
       ["Datum: " + longDate(key)],
       [],
-      ["Nr.", "Beginn", "Ende", "Pause (Min.)", "Dauer", "   Mandant", "Tätigkeit"],
+      ["Nr.", "Beginn", "Ende", "Pause (Min.)", "Dauer", "   Mandant", "In Sachen", "Tätigkeit"],
     ];
-    list.forEach((e, i) => pushEntry(rows, [`${i + 1}.`, e.start, e.end || "läuft", totalPause(e), tcell(netMinutes(e))], e.client, e.note));
+    list.forEach((e, i) => pushEntry(rows, [`${i + 1}.`, e.start, e.end || "läuft", totalPause(e), tcell(netMinutes(e))], e.client, e.matter, e.note));
     rows.push([]);
     rows.push(["Summe Tätigkeiten", "", "", "", tcell(list.reduce((s, e) => s + netMinutes(e), 0))]);
     rows.push(["Arbeitszeit", "", "", "", tcell(dayWork(list)), "   parallele Zeiten einmal gezählt"]);
@@ -782,7 +796,7 @@ window.addEventListener("error", (ev) => {
     return { rows, count: list.length };
   }
 
-  const COLS = [5, 7, 7, 11, 7, CLIENT_WIDTH + 5, NOTE_WIDTH + 2];
+  const COLS = [5, 7, 7, 11, 7, CLIENT_WIDTH + 5, MATTER_WIDTH + 2, NOTE_WIDTH + 2];
 
   function makeSheet(rows, cols) {
     // Leere Zellen weglassen, damit lange Beschriftungen in die Nachbarspalten laufen dürfen
@@ -848,13 +862,13 @@ window.addEventListener("error", (ev) => {
     if (!window.XLSX) return;
     const range = `KW ${kw(weekStart)}: ${weekDays()[0].toLocaleDateString("de-DE")} – ${weekDays()[6].toLocaleDateString("de-DE")}`;
     const head = [["Arbeitszeitnachweis Woche"], ["Name: " + (settings.name || "")], ["Zeitraum: " + range], []];
-    const rows = [...head, ["Datum", "Beginn", "Ende", "Pause (Min.)", "Dauer", "   Mandant", "Tätigkeit"]];
+    const rows = [...head, ["Datum", "Beginn", "Ende", "Pause (Min.)", "Dauer", "   Mandant", "In Sachen", "Tätigkeit"]];
     const summary = [...head, ["Tag", "Datum", "Arbeitszeit", "Summe Tätigkeiten", "Einträge"]];
     let total = 0;
     weekDays().forEach((d, i) => {
       const key = isoDate(d);
       const list = dayList(key).map(([, e]) => e);
-      list.forEach((e) => pushEntry(rows, [d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }), e.start, e.end || "läuft", totalPause(e), tcell(netMinutes(e))], e.client, e.note));
+      list.forEach((e) => pushEntry(rows, [d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }), e.start, e.end || "läuft", totalPause(e), tcell(netMinutes(e))], e.client, e.matter, e.note));
       const w = dayWork(list); total += w;
       summary.push([DAYS[i], d.toLocaleDateString("de-DE"), tcell(w), tcell(list.reduce((s, e) => s + netMinutes(e), 0)), list.length]);
     });
